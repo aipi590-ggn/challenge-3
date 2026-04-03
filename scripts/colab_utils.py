@@ -347,10 +347,11 @@ class LiveChartCallback:
         from stable_baselines3.common.callbacks import BaseCallback
 
         class _Impl(BaseCallback):
-            def __init__(self, update_freq=500, window=100, verbose=0):
+            def __init__(self, update_freq=2000, window=100, max_points=300, verbose=0):
                 super().__init__(verbose)
                 self.update_freq = update_freq
                 self.window = window
+                self.max_points = max_points  # downsample history sent to chart
                 self._ep_rewards: list[float] = []
                 self._ep_successes: list[float] = []
                 self._history: dict[str, list] = {
@@ -395,8 +396,15 @@ class LiveChartCallback:
                 ts = h["timesteps"]
                 n = len(ts)
 
+                # Downsample to max_points evenly spaced indices to cap browser work.
+                if n > self.max_points:
+                    step = n / self.max_points
+                    indices = [int(i * step) for i in range(self.max_points)]
+                else:
+                    indices = list(range(n))
+
                 def pairs(key: str) -> str:
-                    return json.dumps([[ts[i], h[key][i]] for i in range(n)])
+                    return json.dumps([[ts[i], h[key][i]] for i in indices])
 
                 lv = self.model.logger.name_to_value if self.model else {}
                 success_pct = round(h["success"][-1] * 100, 1) if h["success"] else 0.0
