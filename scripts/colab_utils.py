@@ -481,11 +481,16 @@ def publish_artifacts(
 
     rel_paths = [str(Path(p).relative_to(repo_path)) for p in paths]
 
-    try:
-        from google.colab import userdata
-        token = userdata.get(TOKEN_SECRET_NAME)
-    except Exception:
-        token = None
+    # Try env var first (Kaggle secrets, or manual export)
+    token = os.environ.get("GITHUB_TOKEN")
+
+    # Fall back to Colab secret
+    if not token:
+        try:
+            from google.colab import userdata
+            token = userdata.get(TOKEN_SECRET_NAME)
+        except Exception:
+            token = None
 
     if token:
         return _do_publish(token, rel_paths, message, repo_path, dry_run)
