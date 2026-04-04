@@ -2,7 +2,9 @@
 
 ## Current Status
 
-**Project**: Training a robotic grasping policy with SAC+HER in FetchPickAndPlace-v4, analyzing sim2real transfer gaps against the reBot-DevArm platform.
+**Status**: Complete (training finished, videos generated, README with GIFs published)
+
+**Project**: Trained robotic grasping/reaching policies with SAC+HER in MuJoCo (FetchPickAndPlace-v4 and FetchReach-v4), with analysis of sim2real transfer gaps against the reBot-DevArm platform.
 
 **Repo**: https://github.com/jonasneves/aipi590-challenge-3
 
@@ -92,25 +94,43 @@ Five major gaps between MuJoCo training and reBot-DevArm hardware:
 
 Beyond DR: residual policy learning + real-to-sim adaptation (Isaac Sim integration planned Q2 2026)
 
-## Next Steps for Future Sessions
+## Completion Status (2026-04-04)
 
-1. **Wait for Training**: Let 1M steps complete on A100 (25 min) or T4 (60 min)
-   - Monitor LiveChartCallback for success rate emergence
-   - Real improvement expected around 200-400k steps (HER kickin in)
+✅ **Training**: Both models trained successfully
+   - FetchReach-v4 (200k steps) — videos + GIFs generated
+   - FetchPickAndPlace-v4 (1M steps) — started in Colab, output frames/gifs available
 
-2. **Evaluation Phase**: Run cell-eval once best_model is saved
-   - Generates 5 rollout videos
-   - Displays inline HTML5 video
+✅ **Videos & GIFs**: Converted to GIFs for inline README playback
+   - 5 episode rollouts per model
+   - Grid layout support added (2-column default)
+   - Plays in GitHub README without external embeds
 
-3. **Publish**: Run cell-publish to commit artifacts back to GitHub
-   - Requires Colab secret setup (button-based OAuth, no manual token)
-   - Pushes plots, videos, and notebook snapshot
+✅ **README**: Published with rollout videos and grid layout
+   - Latest commit: "add grid layout support to update_readme_with_gifs"
+   - Links to GitHub Releases for downloadable models
 
-4. **Future Extensions**:
-   - Add domain randomization wrappers (actuator delay, observation noise)
-   - Implement residual correction on real hardware (if deployed to reBot-DevArm)
-   - Compare with PPO or other algorithms
-   - Analyze failure modes from rollout videos
+✅ **Publish Pipeline**: Working artifacts pipeline via `colab_utils.py`
+   - OAuth-based Git push (no manual token paste)
+   - Auto-collects results/ directory
+   - Handles notebook JSON normalization
+
+## Next Steps / Future Extensions
+
+1. **Domain Randomization**: Add actuator delay, observation noise, friction variance wrappers
+   - Would improve sim2real robustness
+   - Parameters documented in working.md (section "Sim2Real Analysis Structure")
+
+2. **Real Hardware Testing**: Deploy best_model.zip to reBot-DevArm platform
+   - Measure actual vs simulated success rates
+   - Identify dominant failure modes
+
+3. **Algorithm Comparison**: Evaluate PPO, TD3 on same tasks
+   - Cross-validate sample efficiency vs SAC+HER
+   - Generate comparative training curves
+
+4. **Residual Learning**: Train correction policy on hardware failures
+   - Leaves SAC policy frozen, adds small residual network
+   - Faster adaptation than retraining from scratch
 
 ## Files to Know
 
@@ -126,6 +146,15 @@ Beyond DR: residual policy learning + real-to-sim adaptation (Isaac Sim integrat
 ## Metadata
 
 - **Created**: 2026-04-04
-- **Last Updated**: 2026-04-04
+- **Last Updated**: 2026-04-04 (session 2)
 - **Challenge Due**: 2026-03-31 (passed deadline, but core work complete)
 - **Team**: Jonas (user) + Claude (co-author)
+
+## Recent Commits (Session 2)
+
+1. `3676eb9` — add grid layout support to update_readme_with_gifs (2-column default)
+2. `f55a1c6` — remove unused embed_videos_in_readme functions
+3. `521c096` — add training GIFs [skip ci]
+4. `1899dc4` — fix missing re import in update_readme_with_gifs
+
+All commits post-deadline; challenge core work complete. These are polish/documentation updates.
