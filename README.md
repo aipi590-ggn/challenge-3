@@ -54,6 +54,7 @@ pip install mujoco gymnasium-robotics stable-baselines3 moviepy
 Then run a notebook in [Google Colab](https://colab.research.google.com) or Kaggle.
 
 
+
 ## Rollout Videos (GIF)
 
 <table>
@@ -70,5 +71,3 @@ Then run a notebook in [Google Colab](https://colab.research.google.com) or Kagg
     <td></td>
   </tr>
 </table>
-
-
