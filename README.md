@@ -53,7 +53,23 @@ pip install mujoco gymnasium-robotics stable-baselines3 moviepy
 
 Then run a notebook in [Google Colab](https://colab.research.google.com) or Kaggle.
 
+
 ## Rollout Videos (GIF)
+
+<table>
+  <tr>
+    <td><strong>fetchreach-episode-0</strong><br><img src="results/videos/fetchreach-episode-0.gif" width="100%"></td>
+    <td><strong>fetchreach-episode-1</strong><br><img src="results/videos/fetchreach-episode-1.gif" width="100%"></td>
+  </tr>
+  <tr>
+    <td><strong>fetchreach-episode-2</strong><br><img src="results/videos/fetchreach-episode-2.gif" width="100%"></td>
+    <td><strong>fetchreach-episode-3</strong><br><img src="results/videos/fetchreach-episode-3.gif" width="100%"></td>
+  </tr>
+  <tr>
+    <td><strong>fetchreach-episode-4</strong><br><img src="results/videos/fetchreach-episode-4.gif" width="100%"></td>
+    <td></td>
+  </tr>
+</table>
 
 ### fetchreach-episode-0
 
