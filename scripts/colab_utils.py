@@ -433,6 +433,8 @@ def update_readme_with_gifs(
     Returns:
         True if successful.
     """
+    import re
+
     repo_path = Path(repo_dir)
     readme_full = repo_path / readme_path
 
