@@ -353,7 +353,7 @@ def _publish_release_api(
     import urllib.request
     import json as _json
 
-    owner, repo = "jonasneves", "aipi590-challenge-3"
+    owner, repo = "aipi590-ggn", "aipi590-challenge-3"
     api_url = f"https://api.github.com/repos/{owner}/{repo}/releases"
 
     # Create release
@@ -522,7 +522,7 @@ def publish_artifacts(
         btn.disabled = true;
         status.textContent = 'Waiting for GitHub authorization\u2026';
         try {{
-          const {{ token }} = await connectGitHub('repo', 'jonasneves');
+          const {{ token }} = await connectGitHub('repo', 'aipi590-ggn');
           btn.style.background = '#2da44e';
           btn.innerHTML = '\u2713 Authorized \u2014 publishing\u2026';
           status.textContent = '';
