@@ -2,6 +2,12 @@
 
 Training a robotic grasping/reaching policy in MuJoCo simulation using SAC + Hindsight Experience Replay, with analysis of sim-to-real transfer gaps.
 
+## 🎮 Interactive Visualization
+
+**[View Interactive Policy Rollouts →](https://jonasneves.github.io/aipi590-challenge-3/)**
+
+Explore trained policy episodes with playback controls, speed adjustment, and real-time statistics.
+
 ## Notebooks
 
 - **[challenge3-pickandplace.ipynb](notebooks/challenge3-pickandplace.ipynb)** — Main: 1M timesteps, FetchPickAndPlace-v4 (manipulation task)

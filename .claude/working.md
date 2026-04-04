@@ -34,7 +34,18 @@
    - Prepended to eval cells in both notebooks
    - Fixes "X11: DISPLAY variable missing" error
 
-## Architecture
+## Architecture (Updated Session 2)
+
+### Interactive Web Viewer (NEW)
+- `docs/index.html` — Three.js + playback controls for trajectory visualization
+- `docs/data/trajectories.json` — Trajectory data (joint angles, object positions over time)
+- Auto-deployed to GitHub Pages on every push to main
+- Live at: https://jonasneves.github.io/aipi590-challenge-3/
+
+### Trajectory Extraction
+- `scripts/trajectory_extractor.py` — Extracts joint angles + object states from policy rollouts
+- Can be run in Colab notebooks to save trajectory JSON
+- Enables interactive playback without re-running policy
 
 ### Notebooks
 - `challenge3-pickandplace.ipynb` — main: 1M timesteps, FetchPickAndPlace-v4, full sim2real analysis
