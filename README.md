@@ -71,9 +71,4 @@ Then run a notebook in [Google Colab](https://colab.research.google.com) or Kagg
   </tr>
 </table>
 
-![fetchreach-episode-3](results/videos/fetchreach-episode-3.gif)
-
-### fetchreach-episode-4
-
-![fetchreach-episode-4](results/videos/fetchreach-episode-4.gif)
 
