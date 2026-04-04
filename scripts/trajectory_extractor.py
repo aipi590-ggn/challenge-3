@@ -75,6 +75,21 @@ def save_trajectories(
 ) -> None:
     """Save trajectory data as JSON."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Convert numpy types to Python types for JSON serialization
+    def convert_to_serializable(obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, (np.floating, np.integer)):
+            return float(obj) if isinstance(obj, np.floating) else int(obj)
+        elif isinstance(obj, dict):
+            return {k: convert_to_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [convert_to_serializable(item) for item in obj]
+        return obj
+
+    episodes = convert_to_serializable(episodes)
+
     with open(output_path, 'w') as f:
         json.dump(episodes, f, indent=2)
     print(f'Saved {len(episodes)} trajectories to {output_path}')
