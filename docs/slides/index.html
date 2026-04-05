@@ -55,14 +55,15 @@
     font-size: calc(2 * var(--sf));
     box-shadow: 0 8px 48px rgba(0,0,0,0.7);
   }
-  /* Duke logo watermark */
+  /* Duke logo */
   .slide::after {
     content: '';
     position: absolute;
-    bottom: 4%; right: 3%;
-    width: 5%; height: 8%;
+    bottom: 5%; right: 4%;
+    width: 10%;
+    aspect-ratio: 578 / 486;
     background: url(img/duke-logo.png) no-repeat center/contain;
-    opacity: 0.10;
+    opacity: 0.6;
     pointer-events: none;
   }
 
