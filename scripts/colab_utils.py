@@ -501,11 +501,18 @@ def publish_artifacts(
 
     rel_paths = [str(Path(p).relative_to(repo_path)) for p in paths]
 
-    # Try env var first (Kaggle secrets, or manual export)
     token = os.environ.get("GITHUB_TOKEN")
 
-    # Fall back to Colab secret
-    if not token:
+    # Kaggle secrets (Add-ons → Secrets)
+    if not token and _is_kaggle:
+        try:
+            from kaggle_secrets import UserSecretsClient
+            token = UserSecretsClient().get_secret("GITHUB_TOKEN")
+        except Exception:
+            token = None
+
+    # Colab secrets
+    if not token and _is_colab:
         try:
             from google.colab import userdata
             token = userdata.get(TOKEN_SECRET_NAME)
@@ -518,7 +525,8 @@ def publish_artifacts(
     if not _is_colab:
         print("No GITHUB_TOKEN found.")
         print()
-        print("On Kaggle:  Add-ons → Secrets → add GITHUB_TOKEN (a personal access token with repo scope)")
+        print("On Kaggle:  Add-ons → Secrets → add GITHUB_TOKEN (a personal access token with repo scope),")
+        print("            then toggle it ON for this notebook and re-run the cell")
         print("Elsewhere:  export GITHUB_TOKEN=ghp_...")
         print()
         print("Then re-run this cell.")
