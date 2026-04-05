@@ -101,24 +101,28 @@ def _do_publish(
         print(f"[dry_run] Would commit: {', '.join(rel_paths)}")
         return False
 
-    subprocess.run(["git", "commit", "-m", f"{message} [skip ci]"], check=True, cwd=repo_path)
-
-    # Stash any unstaged changes so rebase can proceed
-    subprocess.run(["git", "stash", "--include-untracked"], cwd=repo_path, capture_output=True)
-
-    subprocess.run(["git", "rebase", "--abort"], cwd=repo_path, capture_output=True)
+    # Sync with remote: reset to origin/main, then recommit only our artifacts.
+    # This avoids rebase conflicts when the Colab clone is many commits behind.
     fetch = subprocess.run(["git", "fetch", "origin", "main"], cwd=repo_path, capture_output=True, text=True)
     if fetch.returncode != 0:
-        subprocess.run(["git", "stash", "pop"], cwd=repo_path, capture_output=True)
         raise RuntimeError(f"git fetch failed:\n{fetch.stderr or fetch.stdout}")
 
-    rebase = subprocess.run(["git", "rebase", "origin/main"], cwd=repo_path, capture_output=True, text=True)
-    if rebase.returncode != 0:
-        subprocess.run(["git", "rebase", "--abort"], cwd=repo_path, capture_output=True)
-        subprocess.run(["git", "stash", "pop"], cwd=repo_path, capture_output=True)
-        raise RuntimeError(f"git rebase failed:\n{rebase.stderr or rebase.stdout}")
+    subprocess.run(["git", "reset", "--soft", "origin/main"], check=True, cwd=repo_path)
 
-    subprocess.run(["git", "stash", "pop"], cwd=repo_path, capture_output=True)
+    # Re-stage only the artifact paths (soft reset moved everything to staged)
+    subprocess.run(["git", "reset", "HEAD", "--", "."], cwd=repo_path, capture_output=True)
+    subprocess.run(["git", "add", "--force", "--", *rel_paths], check=True, cwd=repo_path)
+
+    # Check if there's still something to commit after re-staging
+    status2 = subprocess.run(
+        ["git", "diff", "--cached", "--stat"],
+        cwd=repo_path, capture_output=True, text=True,
+    )
+    if not status2.stdout.strip():
+        print("Artifacts already match remote. Nothing to push.")
+        return False
+
+    subprocess.run(["git", "commit", "-m", f"{message} [skip ci]"], check=True, cwd=repo_path)
 
     push = subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, capture_output=True, text=True)
     if push.returncode != 0:
