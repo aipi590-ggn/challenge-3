@@ -2,10 +2,61 @@
 
 import json
 import numpy as np
+import mujoco
 import gymnasium as gym
 import gymnasium_robotics
 from pathlib import Path
-from typing import Optional
+
+
+# Geoms to save: mesh name -> STL filename
+# These are the visual geoms for the Fetch robot arm + gripper
+FETCH_MESH_GEOMS = [
+    'robot0:base_link',
+    'robot0:torso_lift_link',
+    'robot0:shoulder_pan_link',
+    'robot0:shoulder_lift_link',
+    'robot0:upperarm_roll_link',
+    'robot0:elbow_flex_link',
+    'robot0:forearm_roll_link',
+    'robot0:wrist_flex_link',
+    'robot0:wrist_roll_link',
+    'robot0:gripper_link',
+]
+
+FETCH_FINGER_GEOMS = [
+    'robot0:r_gripper_finger_link',
+    'robot0:l_gripper_finger_link',
+]
+
+
+def _get_geom_transforms(model, data):
+    """Get world-frame position and quaternion for each visualization geom."""
+    transforms = {}
+    for geom_name in FETCH_MESH_GEOMS + FETCH_FINGER_GEOMS:
+        try:
+            gid = model.geom(geom_name).id
+            pos = data.geom_xpos[gid].tolist()
+            # Convert 3x3 rotation matrix to quaternion [w,x,y,z]
+            quat = np.zeros(4)
+            mujoco.mju_mat2Quat(quat, data.geom_xmat[gid])
+            transforms[geom_name] = {
+                'pos': pos,
+                'quat': quat.tolist(),
+            }
+        except Exception:
+            pass
+    return transforms
+
+
+def _get_table_info(model, data):
+    """Get table position from the MuJoCo model."""
+    for name in ['table0', 'table']:
+        try:
+            bid = model.body(name).id
+            return data.xpos[bid].tolist()
+        except Exception:
+            continue
+    return None
 
 
 def extract_trajectory(
@@ -14,21 +65,22 @@ def extract_trajectory(
     n_episodes: int = 1,
     deterministic: bool = True,
 ) -> list[dict]:
-    """
-    Run policy and extract trajectory data (joint angles, gripper state, etc).
-
-    Returns list of episodes, each with timestep data.
-    """
+    """Run policy and extract trajectory data for visualization."""
     gym.register_envs(gymnasium_robotics)
     env = gym.make(env_id)
+
+    mj_model = env.unwrapped.model
+    mj_data = env.unwrapped.data
 
     episodes = []
 
     for ep in range(n_episodes):
         obs, _ = env.reset()
+
         trajectory = {
             'episode': ep,
             'task': env_id,
+            'table_position': _get_table_info(mj_model, mj_data),
             'timesteps': [],
         }
 
@@ -36,32 +88,24 @@ def extract_trajectory(
         step = 0
 
         while not done:
-            # For MultiInputPolicy, predict expects the dict-based observation directly
             action, _ = model.predict(obs, deterministic=deterministic)
 
-            # Extract state before step
-            state = env.unwrapped.data.qpos.copy()  # Joint positions
-
-            # Get goal positions from observation dict
             achieved = obs.get('achieved_goal', np.array([0, 0, 0]))
             desired = obs.get('desired_goal', np.array([0, 0, 0]))
 
-            # Record timestep
             timestep = {
                 'step': step,
-                'joint_positions': state[:7].tolist(),  # 7-DOF arm
-                'gripper_position': state[7:9].tolist() if len(state) > 7 else [0, 0],
-                'object_position': achieved[:3].tolist() if hasattr(achieved, 'tolist') else achieved[:3],
-                'goal_position': desired[:3].tolist() if hasattr(desired, 'tolist') else desired[:3],
+                'geoms': _get_geom_transforms(mj_model, mj_data),
+                'object_position': achieved[:3].tolist() if hasattr(achieved, 'tolist') else list(achieved[:3]),
+                'goal_position': desired[:3].tolist() if hasattr(desired, 'tolist') else list(desired[:3]),
             }
             trajectory['timesteps'].append(timestep)
 
-            # Step environment
             obs, reward, terminated, truncated, info = env.step(action)
             done = terminated or truncated
             step += 1
 
-        trajectory['success'] = info.get('is_success', False)
+        trajectory['success'] = bool(info.get('is_success', False))
         trajectory['length'] = step
         episodes.append(trajectory)
 
@@ -69,38 +113,24 @@ def extract_trajectory(
     return episodes
 
 
-def save_trajectories(
-    episodes: list[dict],
-    output_path: Path,
-) -> None:
+def save_trajectories(episodes, output_path):
     """Save trajectory data as JSON."""
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Convert numpy types to Python types for JSON serialization
-    def convert_to_serializable(obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, (np.floating, np.integer)):
-            return float(obj) if isinstance(obj, np.floating) else int(obj)
-        elif isinstance(obj, dict):
-            return {k: convert_to_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [convert_to_serializable(item) for item in obj]
+    def convert(obj):
+        if isinstance(obj, np.ndarray): return obj.tolist()
+        if isinstance(obj, (np.floating, np.integer)): return float(obj) if isinstance(obj, np.floating) else int(obj)
+        if isinstance(obj, np.bool_): return bool(obj)
+        if isinstance(obj, dict): return {k: convert(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)): return [convert(i) for i in obj]
         return obj
 
-    episodes = convert_to_serializable(episodes)
-
     with open(output_path, 'w') as f:
-        json.dump(episodes, f, indent=2)
+        json.dump(convert(episodes), f)
     print(f'Saved {len(episodes)} trajectories to {output_path}')
 
 
-if __name__ == '__main__':
-    # Example usage
-    from stable_baselines3 import SAC
-
-    model_path = Path('results/models/best_model')
-    if model_path.exists():
-        model = SAC.load(str(model_path))
-        episodes = extract_trajectory(model, n_episodes=5)
-        save_trajectories(episodes, Path('docs/data/trajectories.json'))
+def generate_versioned_filename(env_id, n_episodes):
+    task_name = env_id.split('-')[0].lower()
+    return f'trajectories-{task_name}-{n_episodes}ep.json'
