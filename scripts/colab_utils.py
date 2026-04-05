@@ -12,7 +12,7 @@ from typing import Iterable
 
 REPO_URL = "https://github.com/aipi590-ggn/aipi590-challenge-3.git"
 DEFAULT_REPO_DIR = Path("/content/aipi590-challenge-3")
-TOKEN_SECRET_NAME = "GITHUB_TOKEN_AIPI590_CHALLENGE_3"
+TOKEN_SECRET_NAME = "GITHUB_TOKEN"
 
 _GITHUB_SVG = """
 <svg width="18" height="18" viewBox="0 0 98 96" fill="white"
@@ -58,7 +58,6 @@ def _do_publish(
     repo_path: Path,
     dry_run: bool,
 ) -> bool:
-    import json as _json
 
     missing = [p for p in rel_paths if not (repo_path / p).exists()]
     if missing:
@@ -69,13 +68,13 @@ def _do_publish(
             continue
         nb_path = repo_path / rel
         with open(nb_path) as f:
-            nb = _json.load(f)
+            nb = json.load(f)
         if "ipynb" in nb and "cells" not in nb:
             nb = nb["ipynb"]
             nb.setdefault("nbformat", 4)
             nb.setdefault("nbformat_minor", 5)
             with open(nb_path, "w") as f:
-                _json.dump(nb, f, indent=1)
+                json.dump(nb, f, indent=1)
                 f.write("\n")
 
     repo_url = f"https://x-access-token:{token}@github.com/aipi590-ggn/aipi590-challenge-3.git"
@@ -104,19 +103,32 @@ def _do_publish(
 
     subprocess.run(["git", "commit", "-m", f"{message} [skip ci]"], check=True, cwd=repo_path)
 
+    # Stash any unstaged changes so rebase can proceed
+    subprocess.run(["git", "stash", "--include-untracked"], cwd=repo_path, capture_output=True)
+
     subprocess.run(["git", "rebase", "--abort"], cwd=repo_path, capture_output=True)
     fetch = subprocess.run(["git", "fetch", "origin", "main"], cwd=repo_path, capture_output=True, text=True)
     if fetch.returncode != 0:
+        subprocess.run(["git", "stash", "pop"], cwd=repo_path, capture_output=True)
         raise RuntimeError(f"git fetch failed:\n{fetch.stderr or fetch.stdout}")
 
     rebase = subprocess.run(["git", "rebase", "origin/main"], cwd=repo_path, capture_output=True, text=True)
     if rebase.returncode != 0:
         subprocess.run(["git", "rebase", "--abort"], cwd=repo_path, capture_output=True)
+        subprocess.run(["git", "stash", "pop"], cwd=repo_path, capture_output=True)
         raise RuntimeError(f"git rebase failed:\n{rebase.stderr or rebase.stdout}")
+
+    subprocess.run(["git", "stash", "pop"], cwd=repo_path, capture_output=True)
 
     push = subprocess.run(["git", "push", "origin", "main"], cwd=repo_path, capture_output=True, text=True)
     if push.returncode != 0:
-        raise RuntimeError(f"git push failed:\n{push.stderr or push.stdout}")
+        err = push.stderr or push.stdout
+        if "403" in err or "denied" in err.lower():
+            raise RuntimeError(
+                f"Push denied. Your GitHub account needs write access to aipi590-ggn/aipi590-challenge-3.\n"
+                f"Ask an org admin to add you as a collaborator, then re-run this cell.\n\n{err}"
+            )
+        raise RuntimeError(f"git push failed:\n{err}")
 
     print(f"Pushed: {', '.join(rel_paths)}")
     return True
@@ -347,11 +359,12 @@ def _publish_release_api(
             pass
 
     if not token:
-        print("Error: No GitHub token found. Set GITHUB_TOKEN environment variable.")
+        print("No GitHub token found. Use publish_artifacts() to sign in via OAuth,")
+        print("or add a GITHUB_TOKEN secret in Colab (Settings > Secrets).")
         return False
 
     import urllib.request
-    import json as _json
+    import json as json
 
     owner, repo = "aipi590-ggn", "aipi590-challenge-3"
     api_url = f"https://api.github.com/repos/{owner}/{repo}/releases"
@@ -367,7 +380,7 @@ def _publish_release_api(
 
     req = urllib.request.Request(
         api_url,
-        data=_json.dumps(release_data).encode(),
+        data=json.dumps(release_data).encode(),
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
@@ -378,7 +391,7 @@ def _publish_release_api(
 
     try:
         with urllib.request.urlopen(req) as response:
-            release = _json.loads(response.read())
+            release = json.loads(response.read())
         upload_url = release["upload_url"].replace("{?name,label}", "")
     except Exception as e:
         print(f"Failed to create release: {e}")
@@ -471,13 +484,12 @@ def publish_artifacts(
     repo_path = Path(repo_dir)
 
     if paths is None:
-        # Default: include all files in results/
-        results_dir = repo_path / "results"
-        if results_dir.exists():
-            paths = sorted(results_dir.rglob("*"))
-            paths = [p for p in paths if p.is_file()]
-        else:
-            paths = []
+        # Default: include results/ and docs/data/ (trajectory files)
+        paths = []
+        for subdir in ["results", "docs/data"]:
+            d = repo_path / subdir
+            if d.exists():
+                paths.extend(p for p in sorted(d.rglob("*")) if p.is_file())
 
     rel_paths = [str(Path(p).relative_to(repo_path)) for p in paths]
 
