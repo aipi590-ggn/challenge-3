@@ -18,16 +18,17 @@
     --border: #E2E6ED;
     --border-subtle: #F3F2F1;
     --mono: 'SF Mono', 'Fira Code', monospace;
-    --sf: min(0.95vw, 16px);
+    --slide-w: min(95vw, 960px);
+    --sf: calc(var(--slide-w) / 100);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Inter', system-ui, sans-serif;
-    background: #111; color: #e0e0e0;
+    background: #0e0e0e; color: #e0e0e0;
     padding: 40px 0;
   }
   .toolbar {
-    max-width: calc(min(95vw, 960px));
+    max-width: var(--slide-w);
     margin: 0 auto 24px;
     display: flex; justify-content: flex-end;
   }
@@ -41,13 +42,13 @@
   .toolbar button.active { border-color: #C84E00; color: #C84E00; }
 
   /* ── Slide wrapper ─────────────────────────────────────────────── */
-  .slide-wrapper { max-width: calc(min(95vw, 960px)); margin: 0 auto 48px; }
+  .slide-wrapper { max-width: var(--slide-w); margin: 0 auto 48px; }
 
   /* ── Slide frame (16:9, matches agora presenting mode) ─────────── */
   .slide {
     width: 100%; aspect-ratio: 16 / 9;
     background-color: var(--bg);
-    border-radius: 4px; overflow: hidden; position: relative;
+    overflow: hidden; position: relative;
     display: flex; flex-direction: column;
     justify-content: flex-start;
     padding: calc(3 * var(--sf)) calc(4 * var(--sf)) calc(8 * var(--sf));
@@ -58,10 +59,10 @@
   .slide::after {
     content: '';
     position: absolute;
-    bottom: 3.5%; right: 3.5%;
-    width: 8.5%; height: 12%;
+    bottom: 4%; right: 3%;
+    width: 5%; height: 8%;
     background: url(img/duke-logo.png) no-repeat center/contain;
-    opacity: 0.12;
+    opacity: 0.10;
     pointer-events: none;
   }
 
