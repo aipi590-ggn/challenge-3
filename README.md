@@ -38,11 +38,11 @@ Downloadable from [GitHub Releases](../../releases):
 
 <table>
   <tr>
-    <td><strong>Episode 0</strong><br><a href="results/fetchpickandplace/videos/fetchpickandplace-episode-0.mp4">mp4</a></td>
-    <td><strong>Episode 1</strong><br><a href="results/fetchpickandplace/videos/fetchpickandplace-episode-1.mp4">mp4</a></td>
-    <td><strong>Episode 2</strong><br><a href="results/fetchpickandplace/videos/fetchpickandplace-episode-2.mp4">mp4</a></td>
-    <td><strong>Episode 3</strong><br><a href="results/fetchpickandplace/videos/fetchpickandplace-episode-3.mp4">mp4</a></td>
-    <td><strong>Episode 4</strong><br><a href="results/fetchpickandplace/videos/fetchpickandplace-episode-4.mp4">mp4</a></td>
+    <td><img src="results/fetchpickandplace/videos/fetchpickandplace-episode-0.gif" width="100%"></td>
+    <td><img src="results/fetchpickandplace/videos/fetchpickandplace-episode-1.gif" width="100%"></td>
+    <td><img src="results/fetchpickandplace/videos/fetchpickandplace-episode-2.gif" width="100%"></td>
+    <td><img src="results/fetchpickandplace/videos/fetchpickandplace-episode-3.gif" width="100%"></td>
+    <td><img src="results/fetchpickandplace/videos/fetchpickandplace-episode-4.gif" width="100%"></td>
   </tr>
 </table>
 
