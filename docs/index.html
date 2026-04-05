@@ -187,8 +187,8 @@
         // Head links aren't in trajectory data (joints unactuated by policy).
         // Offsets are centroid-to-centroid, computed from MuJoCo body offsets
         // (robot.xml) corrected by each STL mesh's centroid position.
-        const HEAD_PAN_OFFSET = new THREE.Vector3(0.098, 0.003, 0.289);
-        const HEAD_TILT_OFFSET = new THREE.Vector3(0.134, 0.0003, 0.006);
+        const HEAD_PAN_OFFSET = new THREE.Vector3(0.096, 0, 0.342);
+        const HEAD_TILT_OFFSET = new THREE.Vector3(0.106, 0, 0.003);
 
         const FINGER_GEOMS = ['robot0:r_gripper_finger_link', 'robot0:l_gripper_finger_link'];
 
@@ -228,14 +228,10 @@
             return _quat;
         }
 
-        function centerAtCentroid(geometry) {
-            const pos = geometry.attributes.position;
-            let cx = 0, cy = 0, cz = 0;
-            for (let i = 0; i < pos.count; i++) {
-                cx += pos.getX(i); cy += pos.getY(i); cz += pos.getZ(i);
-            }
-            const n = pos.count;
-            geometry.translate(-cx / n, -cy / n, -cz / n);
+        function centerAtBBox(geometry) {
+            geometry.computeBoundingBox();
+            const c = geometry.boundingBox.getCenter(new THREE.Vector3());
+            geometry.translate(-c.x, -c.y, -c.z);
         }
 
         function initTrailBuffer() {
@@ -383,7 +379,7 @@
             for (const [geomName, file] of Object.entries(MESH_FILES)) {
                 promises.push(new Promise((resolve) => {
                     loader.load('meshes/fetch/' + file, (geometry) => {
-                        centerAtCentroid(geometry);
+                        centerAtBBox(geometry);
                         geometry.computeVertexNormals();
                         const mat = matMap[LINK_MATERIALS[geomName]] || whiteMat;
                         const mesh = new THREE.Mesh(geometry, mat);
