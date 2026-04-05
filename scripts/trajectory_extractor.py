@@ -27,12 +27,8 @@ FETCH_FINGER_GEOMS = [
 ]
 
 # Minimum initial object-to-goal distance (meters) for an episode to
-# be considered visually interesting.
-MIN_INTERESTING_DIST = 0.10
-
-# Maximum number of rollout attempts when filtering for interesting
-# episodes, to avoid infinite loops on poorly trained policies.
-MAX_FILTER_ATTEMPTS = 50
+# count as non-trivial for visualization selection.
+MIN_NONTRIVIAL_DIST = 0.10
 
 
 def _get_geom_transforms(model, data):
@@ -64,26 +60,12 @@ def _get_table_info(model, data):
     return None
 
 
-def _is_interesting(trajectory):
-    """Check whether an episode shows visually meaningful movement."""
+def _initial_distance(trajectory):
+    """Object-to-goal distance at episode start."""
     ts0 = trajectory['timesteps'][0]
-    ts_end = trajectory['timesteps'][-1]
-
-    obj_start = np.array(ts0['object_position'])
+    obj = np.array(ts0['object_position'])
     goal = np.array(ts0['goal_position'])
-    obj_end = np.array(ts_end['object_position'])
-
-    start_dist = np.linalg.norm(obj_start - goal)
-    end_dist = np.linalg.norm(obj_end - goal)
-
-    if start_dist < MIN_INTERESTING_DIST:
-        return False
-
-    # Object should move at least 30% closer to goal
-    if end_dist > start_dist * 0.7:
-        return False
-
-    return True
+    return float(np.linalg.norm(obj - goal))
 
 
 def _run_episode(env, model, mj_model, mj_data, ep_index, deterministic):
@@ -126,21 +108,25 @@ def _run_episode(env, model, mj_model, mj_data, ep_index, deterministic):
 def extract_trajectory(
     model,
     env_id: str = 'FetchPickAndPlace-v4',
-    n_episodes: int = 1,
+    n_episodes: int = 5,
+    n_viz: int = 5,
     deterministic: bool = True,
     video_dir: str | Path | None = None,
     video_prefix: str | None = None,
-    filter_interesting: bool = True,
 ) -> list[dict]:
-    """Run policy rollouts, extract trajectory data and optionally record videos.
+    """Run n_episodes rollouts, return the n_viz most representative ones.
 
-    When video_dir is provided, videos are recorded from the same environment
-    instance and episodes as the trajectory data, so they match exactly.
+    All episodes are evaluated and the full success rate is reported.
+    For visualization, episodes are ranked by initial object-to-goal
+    distance (descending) to surface the most informative behavior.
+    Trivial episodes where the object starts within MIN_NONTRIVIAL_DIST
+    of the goal are ranked last.
 
-    When filter_interesting is True, trivial episodes (object already near goal)
-    are discarded and re-rolled until n_episodes interesting ones are collected.
-    Videos for discarded episodes are cleaned up automatically.
+    When video_dir is provided, videos are recorded from the same
+    environment instance as the trajectory data, so they match exactly.
+    Only videos for selected episodes are kept; the rest are removed.
     """
+    n_run = max(n_episodes, n_viz * 3)
     gym.register_envs(gymnasium_robotics)
 
     render_mode = 'rgb_array' if video_dir else None
@@ -161,52 +147,61 @@ def extract_trajectory(
     mj_model = env.unwrapped.model
     mj_data = env.unwrapped.data
 
-    episodes = []
+    all_episodes = []
     successes = 0
-    raw_ep = 0
 
-    while len(episodes) < n_episodes and raw_ep < MAX_FILTER_ATTEMPTS:
-        traj = _run_episode(env, model, mj_model, mj_data, len(episodes), deterministic)
-        raw_ep += 1
-
-        if filter_interesting and not _is_interesting(traj):
-            # Remove the video file for this discarded episode
-            if video_dir:
-                for f in sorted(video_dir.glob(f'{video_prefix}-episode-{raw_ep - 1}*')):
-                    f.unlink(missing_ok=True)
-            continue
-
-        traj['episode'] = len(episodes)
-        episodes.append(traj)
+    for ep in range(n_run):
+        traj = _run_episode(env, model, mj_model, mj_data, ep, deterministic)
+        all_episodes.append(traj)
         if traj['success']:
             successes += 1
 
     env.close()
+    print(f'Eval: {successes}/{n_run} success ({100 * successes / n_run:.0f}%)')
 
-    # Rename video files to match final episode indices
+    # Rank by initial distance (largest first) for visualization selection.
+    ranked = sorted(all_episodes, key=_initial_distance, reverse=True)
+    selected = ranked[:n_viz]
+
+    # Reassign episode indices
+    selected_raw_indices = set()
+    for i, traj in enumerate(selected):
+        selected_raw_indices.add(traj['episode'])
+        traj['episode'] = i
+
+    # Clean up video files: keep selected, remove the rest, renumber
     if video_dir:
-        _renumber_videos(video_dir, video_prefix, n_episodes)
+        _keep_videos(video_dir, video_prefix, selected_raw_indices, n_run)
 
-    attempted = raw_ep
-    kept = len(episodes)
-    print(f'Kept {kept}/{attempted} episodes (filtered {attempted - kept} trivial)')
-    print(f'Success rate: {successes}/{kept}')
-    return episodes
+    kept_success = sum(1 for t in selected if t['success'])
+    print(f'Selected {n_viz}/{n_run} episodes for visualization ({kept_success} successful)')
+    return selected
 
 
-def _renumber_videos(video_dir, prefix, n_expected):
-    """Rename video files to sequential episode-0..N after filtering."""
+def _keep_videos(video_dir, prefix, keep_indices, total):
+    """Keep only videos for selected episodes, renumber sequentially."""
     video_dir = Path(video_dir)
-    existing = sorted(video_dir.glob(f'{prefix}-episode-*'))
-    for new_idx, path in enumerate(existing):
-        if new_idx >= n_expected:
-            path.unlink(missing_ok=True)
-            continue
+
+    # Collect paths for kept episodes in selection order
+    kept = []
+    for raw_idx in range(total):
+        matches = sorted(video_dir.glob(f'{prefix}-episode-{raw_idx}.*'))
+        if raw_idx in keep_indices:
+            kept.extend(matches)
+        else:
+            for f in matches:
+                f.unlink(missing_ok=True)
+
+    # Renumber kept files: episode-0, episode-1, ...
+    for new_idx, path in enumerate(kept):
         ext = path.suffix
         new_name = f'{prefix}-episode-{new_idx}{ext}'
         new_path = path.parent / new_name
         if path != new_path:
-            path.rename(new_path)
+            # Rename via temp to avoid collisions
+            tmp = path.parent / f'_tmp_{new_idx}{ext}'
+            path.rename(tmp)
+            tmp.rename(new_path)
 
 
 def save_trajectories(episodes, output_path):
