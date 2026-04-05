@@ -118,6 +118,8 @@
         const MESH_FILES = {
             'robot0:base_link': 'base_link_collision.stl',
             'robot0:torso_lift_link': 'torso_lift_link_collision.stl',
+            'robot0:head_pan_link': 'head_pan_link_collision.stl',
+            'robot0:head_tilt_link': 'head_tilt_link_collision.stl',
             'robot0:shoulder_pan_link': 'shoulder_pan_link_collision.stl',
             'robot0:shoulder_lift_link': 'shoulder_lift_link_collision.stl',
             'robot0:upperarm_roll_link': 'upperarm_roll_link_collision.stl',
@@ -127,6 +129,13 @@
             'robot0:wrist_roll_link': 'wrist_roll_link_collision.stl',
             'robot0:gripper_link': 'gripper_link.stl',
         };
+
+        // Bodies not in trajectory data but kinematically fixed to a tracked parent.
+        // Offsets from MuJoCo robot.xml. Head joints are unactuated → stay at default.
+        // head_pan_link: child of torso_lift_link, offset (0.0531, 0, 0.603)
+        // head_tilt_link: child of head_pan_link, offset (0.1425, 0, 0.058)
+        const HEAD_PAN_OFFSET = new THREE.Vector3(0.0531, 0, 0.603);
+        const HEAD_TILT_OFFSET = new THREE.Vector3(0.1425, 0, 0.058);
 
         const FINGER_GEOMS = ['robot0:r_gripper_finger_link', 'robot0:l_gripper_finger_link'];
 
@@ -296,6 +305,8 @@
         const LINK_MATERIALS = {
             'robot0:base_link': 'grey',
             'robot0:torso_lift_link': 'white',
+            'robot0:head_pan_link': 'grey',
+            'robot0:head_tilt_link': 'blue',
             'robot0:shoulder_pan_link': 'white',
             'robot0:shoulder_lift_link': 'blue',
             'robot0:upperarm_roll_link': 'white',
@@ -357,10 +368,26 @@
 
             for (const [name, mesh] of Object.entries(geomMeshes)) {
                 const g = geoms[name];
-                if (!g) { mesh.visible = false; continue; }
+                if (!g) continue;
                 mesh.visible = true;
                 mesh.position.set(...g.pos);
                 mesh.quaternion.copy(mjQuat(g.quat));
+            }
+
+            // Position head links relative to torso (not in trajectory data, joints unactuated)
+            const torso = geoms['robot0:torso_lift_link'];
+            const headPan = geomMeshes['robot0:head_pan_link'];
+            const headTilt = geomMeshes['robot0:head_tilt_link'];
+            if (torso && headPan) {
+                const torsoQ = mjQuat(torso.quat).clone();
+                headPan.position.set(...torso.pos).add(HEAD_PAN_OFFSET.clone().applyQuaternion(torsoQ));
+                headPan.quaternion.copy(torsoQ);
+                headPan.visible = true;
+                if (headTilt) {
+                    headTilt.position.copy(headPan.position).add(HEAD_TILT_OFFSET.clone().applyQuaternion(torsoQ));
+                    headTilt.quaternion.copy(torsoQ);
+                    headTilt.visible = true;
+                }
             }
 
             for (let i = 0; i < ARM_CHAIN.length; i++) {
@@ -501,6 +528,8 @@
         const LABELS = {
             'robot0:base_link': 'Base',
             'robot0:torso_lift_link': 'Torso Lift',
+            'robot0:head_pan_link': 'Head Pan',
+            'robot0:head_tilt_link': 'Head Tilt',
             'robot0:shoulder_pan_link': 'Shoulder Pan',
             'robot0:shoulder_lift_link': 'Shoulder Lift',
             'robot0:upperarm_roll_link': 'Upper Arm Roll',
