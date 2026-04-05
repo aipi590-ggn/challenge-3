@@ -480,10 +480,12 @@ def publish_artifacts(
 
     If paths is None, includes all files under results/ directory.
     """
+    _is_colab = False
     try:
         import google.colab  # noqa: F401
-    except ImportError as exc:
-        raise RuntimeError("publish_artifacts only works from Google Colab.") from exc
+        _is_colab = hasattr(google.colab, "output")
+    except ImportError:
+        pass
 
     repo_path = Path(repo_dir)
 
@@ -510,6 +512,15 @@ def publish_artifacts(
 
     if token:
         return _do_publish(token, rel_paths, message, repo_path, dry_run)
+
+    if not _is_colab:
+        print("No GITHUB_TOKEN found.")
+        print()
+        print("On Kaggle:  Add-ons → Secrets → add GITHUB_TOKEN (a personal access token with repo scope)")
+        print("Elsewhere:  export GITHUB_TOKEN=ghp_...")
+        print()
+        print("Then re-run this cell.")
+        return None
 
     from IPython.display import display, HTML
     from google.colab import output
