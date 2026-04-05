@@ -183,26 +183,30 @@ def _keep_videos(video_dir, prefix, keep_indices, total):
     """Keep only videos for selected episodes, renumber sequentially."""
     video_dir = Path(video_dir)
 
-    # Collect paths for kept episodes in selection order
-    kept = []
+    # Group files by raw episode index
+    kept_episodes = []  # list of (raw_idx, [paths])
     for raw_idx in range(total):
         matches = sorted(video_dir.glob(f'{prefix}-episode-{raw_idx}.*'))
         if raw_idx in keep_indices:
-            kept.extend(matches)
+            kept_episodes.append((raw_idx, matches))
         else:
             for f in matches:
                 f.unlink(missing_ok=True)
 
-    # Renumber kept files: episode-0, episode-1, ...
-    for new_idx, path in enumerate(kept):
-        ext = path.suffix
-        new_name = f'{prefix}-episode-{new_idx}{ext}'
-        new_path = path.parent / new_name
-        if path != new_path:
-            # Rename via temp to avoid collisions
-            tmp = path.parent / f'_tmp_{new_idx}{ext}'
-            path.rename(tmp)
-            tmp.rename(new_path)
+    # First pass: rename all kept files to temp names to avoid collisions
+    temp_map = []  # (temp_path, final_path)
+    for new_idx, (raw_idx, paths) in enumerate(kept_episodes):
+        for path in paths:
+            ext = path.suffix
+            tmp = path.parent / f'_tmp_ep{new_idx}{ext}'
+            final = path.parent / f'{prefix}-episode-{new_idx}{ext}'
+            if path != final:
+                path.rename(tmp)
+                temp_map.append((tmp, final))
+
+    # Second pass: temp -> final
+    for tmp, final in temp_map:
+        tmp.rename(final)
 
 
 def _convert_gifs(video_dir, prefix, scale=320, fps=5):
