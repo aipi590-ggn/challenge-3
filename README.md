@@ -1,5 +1,6 @@
 # AIPI 590: Challenge 3 — RL in the Physical World
 
+[![Duke AIPI 590](https://img.shields.io/badge/Duke-AIPI%20590-012169)](https://masters.pratt.duke.edu/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![MuJoCo](https://img.shields.io/badge/MuJoCo-2.3%2B-green.svg)](https://mujoco.org/)
 [![Stable Baselines3](https://img.shields.io/badge/SB3-1.8%2B-orange.svg)](https://stable-baselines3.readthedocs.io/)
